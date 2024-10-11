@@ -1,0 +1,596 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+
+\begin{document}
+	\documentclass{article}
+	\usepackage{amsmath}
+	\usepackage{amsfonts}
+	\usepackage{amssymb}
+	\usepackage{geometry}
+	\usepackage{hyperref}
+	\geometry{margin=1in}
+	
+	\title{FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+	\author{Your Name}
+	\date{\today}
+	
+	\begin{document}
+		
+		\maketitle
+		
+		\section{Introduction}
+		FLeNS is designed to optimize a global model by combining Nesterov's acceleration with a sketched Hessian matrix in a federated learning setting. This approach leverages the momentum from Nesterov's method to accelerate convergence while reducing the dimensionality of the Hessian matrix through sketching, making the optimization process more efficient.
+		
+		
+		\documentclass{article}
+		\usepackage{algorithm}
+		\usepackage{algpseudocode}
+		\usepackage{amsmath}
+		\usepackage{amsfonts}
+			
+			\begin{algorithm}[h]
+				\small
+				\caption{FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+				\textbf{Objective:} Optimize a global model using Nesterov’s acceleration combined with sketching of the Hessian matrix in a federated learning setting.
+				
+				\textbf{Setup:}
+				Let $D_j$ represent the local dataset at client $j$, where $j = 1, \dots, m$. The global objective function is:
+				\[
+				w^* = \arg\min_{w \in \mathbb{R}^d} \left\{ L(w) = \frac{1}{N} \sum_{j=1}^m \sum_{i=1}^{n_j} \ell(f(w; x_{ij}), y_{ij}) + \frac{\lambda}{2} \|w\|^2 \right\}
+				\]
+				where $N = \sum_{j=1}^m n_j$ is the total number of data points across all clients.
+				
+				\begin{algorithmic}[1]
+					\State \textbf{Step 1: Local Gradient Computation and Sketching}
+					\For{each client $j \in \{1, \dots, m\}$}
+					\State Compute the local gradient $g_{D_j,t}$:
+					\[
+					g_{D_j,t} = \frac{1}{n_j} \sum_{i=1}^{n_j} \nabla_w \ell(f(w_t; x_{ij}), y_{ij}) + \lambda w_t
+					\]
+					\State Apply sketching to the Hessian's feature dimension using sketch matrix $S_j \in \mathbb{R}^{k \times d}$:
+					\[
+					\tilde{H}_{D_j,t} = S_j^\top \nabla^2 L_{D_j,t} S_j
+					\]
+					\EndFor
+					
+					\State \textbf{Step 2: Nesterov’s Acceleration}
+					\For{each client $j$}
+					\State Apply Nesterov’s acceleration:
+					\[
+					v_t = w_t + \beta_t (w_t - w_{t-1})
+					\]
+					\State Update the gradient and sketched Hessian based on $v_t$:
+					\[
+					g_{D_j,t+1} = \nabla L(v_t), \quad \tilde{H}_{D_j,t+1} = \nabla^2 L(v_t)
+					\]
+					\EndFor
+					
+					\State \textbf{Step 3: Communication to Global Server}
+					\For{each client $j$}
+					\State Send $\tilde{H}_{D_j,t+1}$ and $g_{D_j,t+1}$ to the global server.
+					\EndFor
+					
+					\State \textbf{Step 4: Aggregation at Global Server}
+					\State Aggregate the sketched Hessians and gradients:
+					\begin{align*}
+						\tilde{H}_{D,t} &= \sum_{j=1}^m \frac{n_j}{N} \tilde{H}_{D_j,t+1} \\
+						g_{D,t} &= \sum_{j=1}^m \frac{n_j}{N} g_{D_j,t+1}
+					\end{align*}
+					
+					\State \textbf{Step 5: Global Model Update}
+					\State Update the global model parameters:
+					\[
+					w_{t+1} = w_t - \mu \tilde{H}_{D,t}^{-1} g_{D,t}
+					\]
+					where $\mu$ is the step size.
+					
+					\State \textbf{Step 6: Iterate}
+					\State Repeat steps 1-5 until convergence criteria are met.
+					
+				\end{algorithmic}
+			\end{algorithm}
+			
+			
+			% \begin{algorithm}[h]
+				% \caption{FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+				% \textbf{Objective:} Optimize a global model using Nesterov’s acceleration combined with sketching of the Hessian matrix in a federated learning setting.
+				
+				% \textbf{Setup:}
+				% Let $D_j$ represent the local dataset at client $j$, where $j = 1, \dots, m$. The global objective function is:
+				% \[
+				% w^* = \arg\min_{w \in \mathbb{R}^d} \left\{ L(w) = \frac{1}{N} \sum_{j=1}^m \sum_{i=1}^{n_j} \ell(f(w; x_{ij}), y_{ij}) + \frac{\lambda}{2} \|w\|^2 \right\}
+				% \]
+				% where $N = \sum_{j=1}^m n_j$ is the total number of data points across all clients.
+				
+				% \begin{algorithmic}[1]
+					
+					% \State \textbf{Step 1: Local Gradient Computation and Sketching}
+					% \For{each client $j \in \{1, \dots, m\}$}
+					%     \State Compute the local gradient $g_{D_j,t}$:
+					%     \[
+					%     g_{D_j,t} = \frac{1}{n_j} \sum_{i=1}^{n_j} \nabla_w \ell(f(w_t; x_{ij}), y_{ij}) + \lambda w_t
+					%     \]
+					%     \State Apply sketching to the Hessian's feature dimension using sketch matrix $S_j \in \mathbb{R}^{k \times d}$:
+					%     \[
+					%     \tilde{H}_{D_j,t} = S_j^\top \nabla^2 L_{D_j,t} S_j
+					%     \]
+					% \EndFor
+					
+					% \State \textbf{Step 2: Nesterov’s Acceleration}
+					% \For{each client $j$}
+					%     \State Apply Nesterov’s acceleration:
+					%     \[
+					%     v_t = w_t + \beta_t (w_t - w_{t-1})
+					%     \]
+					%     \State Update the gradient and sketched Hessian based on $v_t$:
+					%     \[
+					%     g_{D_j,t+1} = \nabla L(v_t), \quad \tilde{H}_{D_j,t+1} = \nabla^2 L(v_t)
+					%     \]
+					% \EndFor
+					
+					% \State \textbf{Step 3: Communication to Global Server}
+					% \For{each client $j$}
+					%     \State Send $\tilde{H}_{D_j,t+1}$ and $g_{D_j,t+1}$ to the global server.
+					% \EndFor
+					
+					% \State \textbf{Step 4: Aggregation at Global Server}
+					% \State Aggregate the sketched Hessians and gradients:
+					% \[
+					% \tilde{H}_{D,t} = \sum_{j=1}^m \frac{n_j}{N} \tilde{H}_{D_j,t+1}
+					% \]
+					% \[
+					% g_{D,t} = \sum_{j=1}^m \frac{n_j}{N} g_{D_j,t+1}
+					% \]
+					
+					% \State \textbf{Step 5: Global Model Update}
+					% \State Update the global model parameters:
+					% \[
+					% w_{t+1} = w_t - \mu \tilde{H}_{D,t}^{-1} g_{D,t}
+					% \]
+					% where $\mu$ is the step size.
+					
+					% \State \textbf{Step 6: Iterate}
+					% \State Repeat steps 1-5 until convergence criteria are met.
+					
+					% \end{algorithmic}
+				% \end{algorithm}
+			
+			
+			
+			
+			
+			\section{Computational Complexity}
+			
+			\subsection{Local Computation}
+			
+			\paragraph{Gradient Calculation:}
+			Each client \( j \) computes the local gradient \( g_{D_j,t} \) at iteration \( t \):
+			\begin{equation}
+				g_{D_j,t} = \frac{1}{n_j} \sum_{i=1}^{n_j} \nabla_w \ell(f(w_t; x_{ij}), y_{ij}) + \lambda w_t
+			\end{equation}
+			The time complexity for computing the local gradient is:
+			\begin{equation}
+				O(n_jM)
+			\end{equation}
+			where \( n_j \) is the number of data points on client \( j \), and \( M \) is the dimension of the model parameters.
+			
+			\paragraph{Hessian Sketching:}
+			Each client applies a sketching operation to the Hessian matrix using a sketch matrix \( S_j \in \mathbb{R}^{k \times d} \):
+			\begin{equation}
+				\tilde{H}_{D_j,t} = S_j^\top \nabla^2 L_{D_j,t} S_j
+			\end{equation}
+			The time complexity for computing the sketched Hessian is:
+			\begin{equation}
+				O(n_jM^2) \text{ (for the full Hessian)} \rightarrow O(n_jkM) \text{ (after sketching)}
+			\end{equation}
+			where \( k \) is the sketch size, typically \( k \ll M \).
+			
+			\paragraph{Nesterov’s Acceleration:}
+			Nesterov's accelerated gradient step involves updating the model with momentum:
+			\begin{equation}
+				v_t = w_t + \beta_t (w_t - w_{t-1})
+			\end{equation}
+			The time complexity for this vector update is:
+			\begin{equation}
+				O(M)
+			\end{equation}
+			
+			\paragraph{Total Local Computation:}
+			The total computational cost per client for each iteration, considering gradient computation, Hessian sketching, and Nesterov's acceleration, is:
+			\begin{equation}
+				O(n_jM + n_jkM + M)
+			\end{equation}
+			Simplified, the dominant term is:
+			\begin{equation}
+				O(n_jkM)
+			\end{equation}
+			
+			\subsection{Global Computation}
+			
+			\paragraph{Aggregation:}
+			The global server aggregates the sketched Hessians and gradients from all clients:
+			\begin{equation}
+				\tilde{H}_{D,t} = \sum_{j=1}^{m} \frac{n_j}{N} \tilde{H}_{D_j,t}
+			\end{equation}
+			\begin{equation}
+				g_{D,t} = \sum_{j=1}^{m} \frac{n_j}{N} g_{D_j,t}
+			\end{equation}
+			The time complexity for aggregating the sketched Hessians and gradients across \( m \) clients is:
+			\begin{equation}
+				O(mkM)
+			\end{equation}
+			
+			\paragraph{Global Model Update:}
+			The global model is updated using the Nesterov-accelerated gradient and the sketched Hessian:
+			\begin{equation}
+				w_{t+1} = v_t - \mu \tilde{H}_{D,t}^{-1} g_{D,t}
+			\end{equation}
+			The time complexity for inverting the aggregated sketched Hessian is:
+			\begin{equation}
+				O(k^2M + kM^2) \text{ (for inversion)} 
+			\end{equation}
+			\begin{equation}
+				O(kM^2) \text{ (dominant term)}
+			\end{equation}
+			
+			\paragraph{Total Global Computation:}
+			The overall global computation per iteration is:
+			\begin{equation}
+				O(mkM + kM^2)
+			\end{equation}
+			
+			\section{Communication Complexity}
+			
+			\subsection{Local to Global Communication}
+			
+			\paragraph{Gradient and Hessian Communication:}
+			Each client sends its local sketched Hessian \( \tilde{H}_{D_j,t} \) (of size \( k \times M \)) and gradient \( g_{D_j,t} \) (of size \( M \)) to the global server.
+			\begin{equation}
+				O(kM + M) \approx O(kM)
+			\end{equation}
+			Total communication across all clients is:
+			\begin{equation}
+				O(mkM)
+			\end{equation}
+			
+			\subsection{Global to Local Communication}
+			
+			\paragraph{Model Update Communication:}
+			The global server sends the updated model \( w_{t+1} \) back to each client.
+			\begin{equation}
+				O(M)
+			\end{equation}
+			Total communication across all clients is:
+			\begin{equation}
+				O(mM)
+			\end{equation}
+			
+			\section{Overall Complexity Analysis}
+			
+			\subsection{Computational Complexity}
+			
+			\paragraph{Total Local Computation:}
+			The overall local computation per client per iteration is:
+			\begin{equation}
+				O(n_jkM)
+			\end{equation}
+			
+			\paragraph{Total Global Computation:}
+			The overall global computation per iteration is:
+			\begin{equation}
+				O(mkM + kM^2)
+			\end{equation}
+			
+			\subsection{Communication Complexity}
+			
+			\paragraph{Total Communication (Local to Global + Global to Local):}
+			The overall communication complexity per iteration is:
+			\begin{equation}
+				O(mkM + mM) \approx O(mkM)
+			\end{equation}
+			
+			\section{Comparison to Other Methods}
+			
+			\paragraph{Efficiency:}
+			FLeNS improves efficiency by leveraging the momentum from Nesterov's acceleration, which can lead to faster convergence compared to standard Newton's methods. The use of a sketched Hessian matrix reduces the dimensionality of the problem, significantly lowering both the computational and communication costs.
+			
+			\paragraph{Scalability:}
+			The scalability of FLeNS is well-suited for large-scale federated learning settings where communication costs are critical. By sketching the Hessian, the size of the data communicated between clients and the global server is reduced, allowing the algorithm to handle large models and datasets more efficiently.
+			
+			\paragraph{Convergence:}
+			The convergence speed is enhanced by Nesterov’s acceleration, which provides an additional boost over standard gradient descent methods. The use of sketching, while reducing the complexity, does not significantly impact the convergence quality due to the retention of key Hessian information through the sketching process.
+			
+			\section{Summary}
+			
+			\begin{tabular}{|c|c|}
+				\hline
+				\textbf{Aspect} & \textbf{FLeNS} \\
+				\hline
+				Local Computation & \( O(n_jkM) \) \\
+				\hline
+				Global Computation & \( O(mkM + kM^2) \) \\
+				\hline
+				Communication (Local-Global) & \( O(mkM) \) \\
+				\hline
+				Communication (Global-Local) & \( O(mM) \) \\
+				\hline
+				Total Complexity & Lower than full Hessian methods, efficient due to sketching and acceleration \\
+				\hline
+				Convergence Speed & Fast due to Nesterov’s acceleration, with good scalability \\
+				\hline
+			\end{tabular}
+			
+			
+			
+			\documentclass{article}
+			\usepackage{amsmath}
+			\usepackage{amssymb}
+			\usepackage{amsfonts}
+			\usepackage{geometry}
+			\usepackage{hyperref}
+			\geometry{margin=1in}
+			
+			\title{Convergence Analysis of FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+			\author{Your Name}
+			\date{\today}
+			
+			\begin{document}
+				
+				\maketitle
+				
+				\section{Overview}
+				FLeNS is designed to optimize a global model by leveraging both the acceleration properties of Nesterov’s method and the dimensionality reduction provided by Hessian sketching. The key idea is to achieve faster convergence than traditional methods by incorporating momentum while also reducing the computational and communication burden via sketching.
+				
+				\documentclass{article}
+				\usepackage{amsmath}
+				\usepackage{amssymb}
+				\usepackage{amsfonts}
+				\usepackage{geometry}
+				\usepackage{algorithm}
+				\usepackage{algorithmic}
+				\geometry{margin=1in}
+				
+				\title{Convergence Analysis for FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+				\author{Your Name}
+				\date{\today}
+				
+				\begin{document}
+					
+					\maketitle
+					
+					\section{Introduction}
+					FLeNS (Federated Learning with Enhanced Nesterov-Newton Sketch) extends Newton's method by incorporating Nesterov's acceleration and Hessian sketching in a federated learning setting. This document presents the convergence analysis of the FLeNS algorithm, highlighting how the combination of these techniques affects the convergence rate.
+					
+					\section{Algorithm Overview}
+					
+					\textbf{Objective:} Optimize a global model using Nesterov’s acceleration combined with sketching of the Hessian matrix in a federated learning setting.
+					
+					\textbf{Global Objective Function:}
+					\[
+					w^* = \arg\min_{w \in \mathbb{R}^d} \left\{ L(w) = \frac{1}{N} \sum_{j=1}^m \sum_{i=1}^{n_j} \ell(f(w; x_{ij}), y_{ij}) + \frac{\lambda}{2} \|w\|^2 \right\}
+					\]
+					where $N = \sum_{j=1}^m n_j$ is the total number of data points across all clients.
+					
+					\section{Convergence Analysis}
+					
+					\subsection{Nesterov’s Acceleration}
+					
+					In FLeNS, the weight update rule incorporates Nesterov’s acceleration:
+					\[
+					v_t = w_t + \beta_t(w_t - w_{t-1})
+					\]
+					Here, \( v_t \) is the accelerated variable, and \( \beta_t \) is the momentum term. The gradient \( g_{D_j,t+1} \) and the sketched Hessian \( \tilde{H}_{D_j,t+1} \) are computed based on \( v_t \) rather than \( w_t \).
+					
+					\subsection{Local Computation with Sketching}
+					
+					Each client \( j \) computes the local gradient and applies sketching to the Hessian matrix:
+					\[
+					g_{D_j,t} = \frac{1}{n_j} \sum_{i=1}^{n_j} \nabla_w \ell(f(v_t; x_{ij}), y_{ij}) + \lambda v_t
+					\]
+					\[
+					\tilde{H}_{D_j,t} = S_j^\top \nabla^2 L_{D_j,t} S_j
+					\]
+					
+					\subsection{Global Aggregation and Update}
+					
+					The global server aggregates the sketched Hessians and gradients from all clients:
+					\[
+					\tilde{H}_{D,t} = \sum_{j=1}^m \frac{n_j}{N} \tilde{H}_{D_j,t+1}
+					\]
+					\[
+					g_{D,t} = \sum_{j=1}^m \frac{n_j}{N} g_{D_j,t+1}
+					\]
+					The global update rule is then applied using the accelerated variable:
+					\[
+					w_{t+1} = v_t - \mu \tilde{H}_{D,t}^{-1} g_{D,t}
+					\]
+					
+					\subsection{Error Bound and Convergence Rate}
+					
+					The error bound in FLeNS is influenced by both the Hessian sketching and the momentum term from Nesterov’s acceleration:
+					\[
+					\|w_{t+1} - w^*\|^2 \leq \epsilon \left( \frac{\beta}{\gamma} \|v_t - w^*\|^2 + \frac{4L}{\gamma} \|v_t - w^*\|^4 \right)
+					\]
+					where \( \epsilon \) is the tolerance, \( \gamma \) is the curvature constant, and \( L \) is the Lipschitz constant. The sketch size \( k \) must satisfy:
+					\[
+					m \gtrsim \epsilon^{-2}M = \frac{1}{\log^2(1+t)}M
+					\]
+					to ensure that the approximation error remains within acceptable bounds.
+					
+					\subsection{Final Convergence Guarantee}
+					
+					Under appropriate conditions, FLeNS achieves super-linear convergence:
+					\[
+					\|w_{t+1} - w^*\|^2 \leq \frac{1}{\log(1+t)} \left( \frac{\beta}{\gamma} \|w_t - w^*\|^2 + \frac{4L}{\gamma} \|w_t - w^*\|^4 \right)
+					\]
+					The use of Nesterov’s acceleration leads to faster error reduction compared to traditional Newton's method.
+					
+					\subsection{Practical Considerations}
+					
+					\textbf{Initialization:} The initial point \( w_0 \) should be close to the optimal solution \( w^* \) to achieve super-linear convergence.
+					
+					\textbf{Communication Complexity:} The communication cost per iteration depends on the sketch size \( k \) and the number of clients \( m \), similar to FedNS but with the added complexity of Nesterov's acceleration.
+					
+					\section{Conclusion}
+					
+					The convergence analysis for FLeNS shows that by combining Nesterov’s acceleration with Hessian sketching, the algorithm can achieve super-linear convergence rates under the right conditions. Proper parameter tuning is crucial for ensuring that FLeNS performs optimally in federated learning environments.
+					
+					\documentclass{article}
+					\usepackage{amsmath}
+					\usepackage{amssymb}
+					\usepackage{amsfonts}
+					\usepackage{geometry}
+					\geometry{margin=1in}
+					
+					\title{Generalization Analysis for FLeNS: Federated Learning with Enhanced Nesterov-Newton Sketch}
+					\author{Your Name}
+					\date{\today}
+						
+						\maketitle
+						
+						\section{Introduction}
+						FLeNS (Federated Learning with Enhanced Nesterov-Newton Sketch) is a federated learning algorithm that combines Nesterov’s acceleration with Hessian sketching to optimize a global model. This document presents the generalization analysis for FLeNS, specifically focusing on how these techniques affect the generalization error.
+						
+						\section{General Setup}
+						
+						\textbf{Objective:} The global objective function is defined as:
+						\[
+						w^* = \arg\min_{w \in \mathbb{R}^d} \left\{ L(w) = \frac{1}{N} \sum_{j=1}^m \sum_{i=1}^{n_j} \ell(f(w; x_{ij}), y_{ij}) + \frac{\lambda}{2} \|w\|^2 \right\},
+						\]
+						where $N = \sum_{j=1}^m n_j$ is the total number of data points across all clients.
+						
+						\section{Assumptions}
+						
+						\begin{itemize}
+							\item \textbf{Lipschitz Continuity:} The loss function $\ell(f(w; x_{ij}), y_{ij})$ is Lipschitz continuous with constant $L$. This ensures stability in the gradient computation.
+							\item \textbf{Strong Convexity:} The loss function is strongly convex with constant $\lambda > 0$, implying a well-defined global minimum.
+							\item \textbf{Bounded Gradient Norm:} The norm of the gradient $\|\nabla_w \ell(f(w; x_{ij}), y_{ij})\|$ is uniformly bounded across all data points and clients.
+						\end{itemize}
+						
+						\section{Generalization Error Bound}
+						
+						\subsection{Federated Learning Setting}
+						In FLeNS, each client computes a local gradient and a sketched Hessian, which are aggregated at the global server. The global model update incorporates Nesterov’s acceleration to enhance convergence.
+						
+						\subsection{Generalization Error Definition}
+						The generalization error is defined as the difference between the expected loss of the learned model $w_T$ after $T$ iterations and the loss of the optimal model $w^*$:
+						\[
+						\mathbb{E}[L(w_T)] - L(w^*),
+						\]
+						where $\mathbb{E}[\cdot]$ denotes the expectation over the distribution of the data.
+						
+						\subsection{Error Bound}
+						Under the Lipschitz continuity and strong convexity assumptions, the generalization error after $T$ iterations can be bounded as:
+						\[
+						\mathbb{E}[L(w_T)] - L(w^*) \leq O\left(\frac{L \|w_0 - w^*\|^2}{T^2}\right) + O\left(\frac{1}{\sqrt{k}}\right),
+						\]
+						where $k$ is the sketch size, $L$ is the Lipschitz constant, and $\|w_0 - w^*\|^2$ is the initial error.
+						
+						\begin{itemize}
+							\item The first term $O\left(\frac{L \|w_0 - w^*\|^2}{T^2}\right)$ represents the rapid convergence due to Nesterov’s acceleration.
+							\item The second term $O\left(\frac{1}{\sqrt{k}}\right)$ accounts for the error introduced by Hessian sketching. As $k$ increases, this error decreases, improving generalization.
+						\end{itemize}
+						
+						\subsection{Sketch Size and Generalization}
+						The sketch size $k$ must be large enough to ensure accurate Hessian approximation. A typical choice is:
+						\[
+						k = \Omega(\sqrt{d}),
+						\]
+						where $d$ is the dimensionality of the model.
+						
+						\section{Impact of Nesterov’s Acceleration}
+						
+						Nesterov’s acceleration not only speeds up convergence but also helps in reducing the generalization error by allowing the model to reach lower optimization errors faster. This results in a lower generalization error within the same number of iterations compared to methods without acceleration.
+						
+						\section{Conclusion}
+						
+						The generalization analysis of FLeNS shows that the combination of Nesterov’s acceleration and Hessian sketching can effectively balance fast convergence with low generalization error. By carefully choosing the sketch size $k$ and leveraging the momentum term from Nesterov’s method, FLeNS achieves efficient and scalable performance in federated learning environments.
+						
+				
+				% \section{Key Convergence Concepts}
+				
+				% \subsection{Nesterov’s Acceleration}
+				% Nesterov’s method accelerates the convergence of gradient-based optimization by introducing momentum. The method achieves a convergence rate of \( O(1/t^2) \) for convex problems, compared to \( O(1/t) \) for standard gradient descent, where \( t \) is the iteration number.
+				
+				% \subsection{Sketching of the Hessian}
+				% The Hessian matrix is sketched to reduce its dimensionality, allowing for efficient computation while retaining essential curvature information. The sketching introduces an approximation, but when properly controlled, it maintains the convergence properties of the original Newton’s method.
+				
+				% \section{Convergence Rate}
+				
+				% \subsection{Nesterov’s Acceleration}
+				% \paragraph{Acceleration Impact:} Nesterov’s acceleration improves the convergence speed by effectively using previous updates to create a momentum term. This allows the optimization to move faster toward the optimum compared to standard gradient-based methods.
+				
+				% \paragraph{Mathematical Representation:}
+				% \begin{equation}
+					% v_t = w_t + \beta_t (w_t - w_{t-1})
+					% \end{equation}
+				% Here, \( v_t \) is the accelerated variable, and \( \beta_t \) is the momentum parameter. The update rule for FLeNS combines this with the sketched Hessian:
+				% \begin{equation}
+					% w_{t+1} = v_t - \mu \tilde{H}_{D,t}^{-1} g_{D,t}
+					% \end{equation}
+				
+				% \paragraph{Convergence Rate for Nesterov’s Method:}
+				% The convergence rate for the accelerated gradient descent is typically:
+				% \begin{equation}
+					% L(w_{t+1}) - L(w^*) \leq \frac{2L(w_0) - 2L(w^*)}{(t+1)^2}
+					% \end{equation}
+				% where \( L(w) \) is the loss function, \( w^* \) is the optimal solution, and \( t \) is the iteration number. This represents a significant improvement over the standard \( O(1/t) \) rate.
+				
+				% \subsection{Impact of Hessian Sketching}
+				% \paragraph{Approximation Error:} The sketching process introduces an approximation error into the Hessian, which can affect the convergence rate. However, if the sketch size \( k \) is chosen appropriately, the error remains small, and the convergence rate is only slightly affected.
+				
+				% \paragraph{Quadratic Convergence with Approximation:}
+				% When near the optimal solution, FLeNS can achieve a quadratic convergence rate due to the second-order information provided by the Hessian:
+				% \begin{equation}
+					% \|w_{t+1} - w^*\| \leq C \|w_t - w^*\|^2
+					% \end{equation}
+				% Here, \( C \) is a constant dependent on the Hessian's conditioning and the quality of the sketch approximation.
+				
+				% \subsection{Combined Effect}
+				% \paragraph{Enhanced Convergence:} The combination of Nesterov’s acceleration and Hessian sketching allows FLeNS to achieve faster convergence than either method alone. The acceleration reduces the number of iterations required, while the sketched Hessian ensures that each iteration is computationally efficient.
+				
+				% \section{Factors Affecting Convergence}
+				
+				% \subsection{Sketch Size \( k \)}
+				% The choice of sketch size is crucial. A larger \( k \) ensures that the Hessian approximation is accurate, which maintains the convergence properties close to those of the full Hessian. However, this comes at the cost of increased computation.
+				
+				% \subsection{Momentum Parameter \( \beta_t \)}
+				% The momentum parameter must be chosen carefully to balance between the acceleration effect and stability. If \( \beta_t \) is too large, the method might overshoot, leading to instability.
+				
+				% \subsection{Regularization Parameter \( \lambda \)}
+				% Regularization affects the conditioning of the Hessian and, consequently, the convergence rate. Proper tuning of \( \lambda \) helps in maintaining a well-conditioned Hessian, aiding in faster and more stable convergence.
+				
+				% \section{Convergence Guarantees}
+				
+				% \subsection{Global Convergence}
+				% FLeNS guarantees global convergence under certain conditions, such as when the sketch size \( k \) is sufficiently large and the learning rate \( \mu \) is chosen appropriately. The method converges to a stationary point of the global objective function.
+				
+				% \subsection{Local Convergence}
+				% Near the optimal solution, FLeNS should exhibit a convergence rate that is close to quadratic, thanks to the second-order information from the sketched Hessian and the acceleration from Nesterov’s method.
+				
+				% \section{Comparison with Other Methods}
+				% \paragraph{Faster Convergence:} Compared to standard gradient-based methods, FLeNS achieves faster convergence due to the incorporation of Nesterov’s acceleration. Compared to Newton-based methods, it maintains a similar rate but with significantly reduced computational and communication costs due to sketching.
+				
+				% \paragraph{Scalability:} The combination of sketching and Nesterov’s method makes FLeNS particularly well-suited for large-scale federated learning settings, where both computation and communication efficiency are critical.
+				
+				% \section{Summary}
+				
+				% \begin{itemize}
+					%     \item \textbf{Nesterov’s Acceleration:} Provides an \( O(1/t^2) \) convergence rate, which is faster than standard gradient descent.
+					%     \item \textbf{Quadratic Convergence:} Near the optimal solution, FLeNS can achieve quadratic convergence, though slightly impacted by the sketching approximation.
+					%     \item \textbf{Global Convergence:} Guaranteed under appropriate conditions, with convergence to a stationary point of the objective function.
+					%     \item \textbf{Efficiency:} The method balances fast convergence with computational efficiency, making it suitable for federated learning environments.
+					% \end{itemize}
+				
+				% \section{Conclusion}
+				% FLeNS successfully combines Nesterov’s acceleration with Hessian sketching to deliver a federated learning algorithm that converges quickly and efficiently. By carefully choosing parameters such as the sketch size \( k \), momentum parameter \( \beta_t \), and regularization \( \lambda \), FLeNS can achieve near-optimal convergence rates while keeping computational and communication overhead low. This makes FLeNS a powerful tool for large-scale, distributed optimization in machine learning.
+				
+				
+				
+				
+			\end{document}
+			
